@@ -1,0 +1,104 @@
+name: Build V6 Robust Backup + Members APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-v6:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Diagnose V5 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          grep -F 'applicationId = "io.github.hutoto147.dakhlokharj"' app/build.gradle.kts
+          grep -F 'versionCode = 5' app/build.gradle.kts
+          grep -F 'versionName = "1.0.5"' app/build.gradle.kts
+          grep -F 'storeFile = file("kharjyar-v5-debug.keystore")' app/build.gradle.kts
+          grep -F 'fun getMembers(): List<HouseholdMember>' app/src/main/java/com/example/kharjyar/LedgerDb.kt
+          grep -F 'fun addMember(name: String)' app/src/main/java/com/example/kharjyar/LedgerDb.kt
+
+      - name: Verify exact V5 debug signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f app/kharjyar-v5-debug.keystore
+          keytool -list -v \
+            -keystore app/kharjyar-v5-debug.keystore \
+            -storepass kharjyar-v5-debug \
+            -alias kharjyar-debug >/tmp/v5-key.txt
+          grep -E 'SHA256:|SHA-256:' /tmp/v5-key.txt || true
+          sha256sum app/kharjyar-v5-debug.keystore
+
+      - name: Apply V6 robust fixes
+        run: python3 apply_v6_robust_fix.py .
+
+      - name: Verify patched source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'versionCode = 6' app/build.gradle.kts
+          grep -F 'versionName = "1.0.6"' app/build.gradle.kts
+          grep -F 'storeFile = file("kharjyar-v5-debug.keystore")' app/build.gradle.kts
+          grep -F 'saveBackupToDownloads' app/src/main/java/com/example/kharjyar/MainActivity.kt
+          grep -F 'showMemberAdder' app/src/main/java/com/example/kharjyar/MainActivity.kt
+          grep -F 'fun deleteMember(id: Long): Boolean' app/src/main/java/com/example/kharjyar/LedgerDb.kt
+          if grep -Eq 'MANAGE_EXTERNAL_STORAGE|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE' app/src/main/AndroidManifest.xml; then
+            echo "Unexpected broad storage permission found."
+            exit 1
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Run unit tests
+        run: gradle :app:testDebugUnitTest --no-daemon
+
+      - name: Build V6 Debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Verify V6 APK certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -printcert -jarfile app/build/outputs/apk/debug/app-debug.apk || true
+          sha256sum app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit V6 source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/build.gradle.kts \
+                  app/src/main/java/com/example/kharjyar/MainActivity.kt \
+                  app/src/main/java/com/example/kharjyar/LedgerDb.kt
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "V6: fix backup restore and household members"
+            git push
+          fi
+
+      - name: Upload V6 Test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DakhlKharj-V6-Robust-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
