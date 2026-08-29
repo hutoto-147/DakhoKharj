@@ -230,8 +230,6 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
         val memberCount = db.rawQuery("SELECT COUNT(*) FROM household_members", null).use { if (it.moveToFirst()) it.getInt(0) else 0 }
         if (memberCount == 0) {
             insertMember(db, "من")
-            insertMember(db, "مشترک")
-            insertMember(db, "هم‌خانه")
         }
     }
 
@@ -395,15 +393,91 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
         }
     }
 
+    private fun migrateLegacyHouseholdDefaults(db: SQLiteDatabase) {
+        val alreadyDone = db.rawQuery(
+            "SELECT value FROM settings WHERE key = ? LIMIT 1",
+            arrayOf("household_defaults_v6")
+        ).use { it.moveToFirst() && it.getString(0) == "1" }
+        if (alreadyDone) return
+
+        listOf("مشترک", "هم‌خانه").forEach { legacyName ->
+            val usedInEntries = db.rawQuery(
+                "SELECT 1 FROM entries WHERE member_name = ? LIMIT 1",
+                arrayOf(legacyName)
+            ).use { it.moveToFirst() }
+            val usedInRecurring = db.rawQuery(
+                "SELECT 1 FROM recurring_rules WHERE member_name = ? LIMIT 1",
+                arrayOf(legacyName)
+            ).use { it.moveToFirst() }
+
+            if (!usedInEntries && !usedInRecurring) {
+                db.delete("household_members", "name = ?", arrayOf(legacyName))
+            }
+        }
+
+        db.insertWithOnConflict(
+            "settings",
+            null,
+            ContentValues().apply {
+                put("key", "household_defaults_v6")
+                put("value", "1")
+            },
+            SQLiteDatabase.CONFLICT_REPLACE
+        )
+    }
+
     fun getMembers(): List<HouseholdMember> {
-        seedDefaults(writableDatabase)
+        val db = writableDatabase
+        seedDefaults(db)
+        migrateLegacyHouseholdDefaults(db)
+
         val out = mutableListOf<HouseholdMember>()
-        readableDatabase.query("household_members", null, null, null, null, null, "id").use { c -> while (c.moveToNext()) out += HouseholdMember(c.long("id"), c.string("name")) }
+        readableDatabase.query(
+            "household_members",
+            null,
+            null,
+            null,
+            null,
+            null,
+            "CASE WHEN name = 'من' THEN 0 ELSE 1 END, id"
+        ).use { c ->
+            while (c.moveToNext()) {
+                out += HouseholdMember(c.long("id"), c.string("name"))
+            }
+        }
         return out
     }
 
-    fun addMember(name: String) {
-        if (name.isNotBlank()) writableDatabase.insertWithOnConflict("household_members", null, ContentValues().apply { put("name", name.trim()) }, SQLiteDatabase.CONFLICT_IGNORE)
+    fun addMember(name: String): Boolean {
+        val cleaned = name.trim()
+        if (cleaned.isBlank()) return false
+        return writableDatabase.insertWithOnConflict(
+            "household_members",
+            null,
+            ContentValues().apply { put("name", cleaned) },
+            SQLiteDatabase.CONFLICT_IGNORE
+        ) != -1L
+    }
+
+    fun deleteMember(id: Long): Boolean {
+        val db = writableDatabase
+        val name = db.rawQuery(
+            "SELECT name FROM household_members WHERE id = ? LIMIT 1",
+            arrayOf(id.toString())
+        ).use {
+            if (it.moveToFirst()) it.getString(0) else null
+        } ?: return false
+
+        if (name == "من") return false
+
+        val usedInRecurring = db.rawQuery(
+            "SELECT 1 FROM recurring_rules WHERE member_name = ? LIMIT 1",
+            arrayOf(name)
+        ).use { it.moveToFirst() }
+
+        if (usedInRecurring) return false
+
+        return db.delete("household_members", "id = ?", arrayOf(id.toString())) > 0
     }
 
     fun getRecurringRules(): List<RecurringRule> {
@@ -617,7 +691,8 @@ class LedgerRepository(context: Context) {
     fun accounts(): List<Account> = db.getAccounts()
     fun saveAccount(account: Account) = db.saveAccount(account)
     fun members(): List<HouseholdMember> = db.getMembers()
-    fun addMember(name: String) = db.addMember(name)
+    fun addMember(name: String): Boolean = db.addMember(name)
+    fun deleteMember(id: Long): Boolean = db.deleteMember(id)
 
     fun recurringRules(): List<RecurringRule> = db.getRecurringRules()
     fun saveRecurring(rule: RecurringRule) = db.saveRecurringRule(rule)

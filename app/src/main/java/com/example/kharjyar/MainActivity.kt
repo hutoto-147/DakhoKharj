@@ -1463,6 +1463,7 @@ private fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged:
     var budgetText by remember(refreshToken) { mutableStateOf(repo.budget().takeIf { it > 0 }?.toString()?.toPersianDigits().orEmpty()) }
     var accountName by remember { mutableStateOf("") }
     var memberName by remember { mutableStateOf("") }
+    var showMemberAdder by rememberSaveable { mutableStateOf(false) }
     var categoryType by remember { mutableStateOf(EntryType.EXPENSE) }
     var categoryName by remember { mutableStateOf("") }
     var subcategoryName by remember { mutableStateOf("") }
@@ -1471,17 +1472,26 @@ private fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged:
 
     val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        runCatching { context.contentResolver.openOutputStream(uri)?.use { it.write(repo.exportJson().toByteArray(Charsets.UTF_8)) } }
-            .onSuccess { status = "بکاپ ذخیره شد. اگر Google Drive را انتخاب کرده باشید، فایل در فضای ابری شماست." }
-            .onFailure { status = "خطا در ذخیره بکاپ: ${it.message}" }
+        runCatching {
+            val stream = context.contentResolver.openOutputStream(uri, "w")
+                ?: error("امکان نوشتن فایل وجود ندارد")
+            stream.writer(Charsets.UTF_8).use { it.write(repo.exportJson()) }
+        }.onSuccess {
+            status = "بکاپ با موفقیت ذخیره شد."
+        }.onFailure {
+            status = "خطا در ذخیره بکاپ: ${it.message ?: "خطای نامشخص"}"
+        }
     }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         runCatching {
-            val json = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("فایل خوانده نشد")
-            repo.importJson(json)
-            ReminderScheduler.scheduleAll(context)
-        }.onSuccess { status = "بکاپ بازیابی شد."; onChanged() }.onFailure { status = "بازیابی ناموفق: ${it.message}" }
+            restoreBackupFromUri(context, repo, uri)
+        }.onSuccess {
+            status = "بکاپ با موفقیت بازیابی شد."
+            onChanged()
+        }.onFailure {
+            status = "بازیابی ناموفق: ${it.message ?: "خطای نامشخص"}"
+        }
     }
     val xlsxLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -1535,16 +1545,31 @@ private fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged:
 
         SettingsAccordionSection("بکاپ و انتقال اطلاعات", "بکاپ، بازیابی، Excel و PDF", openSection == "backup", { openSection = if (openSection == "backup") null else "backup" }) {
             Text("بکاپ شامل تراکنش‌ها، بدهی و قرض، حساب‌ها، دسته‌ها، تگ‌ها، تنظیمات، اقساط و یادآورهاست.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 12.sp)
+            Text("برنامه دسترسی عمومی به فایل‌های گوشی نمی‌گیرد. بکاپ در Downloads ذخیره می‌شود و برای بازیابی فقط فایلی که خودتان انتخاب می‌کنید خوانده می‌شود.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 11.sp)
+
+            Button(modifier = Modifier.fillMaxWidth(), onClick = {
+                val suggestedName = "DakhlKharj-Backup-${PersianDate.format(System.currentTimeMillis()).replace("/", "-")}.json"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    runCatching { saveBackupToDownloads(context, repo.exportJson(), suggestedName) }
+                        .onSuccess { status = "بکاپ در پوشه Downloads ذخیره شد: $it" }
+                        .onFailure {
+                            status = "ذخیره مستقیم ممکن نشد؛ محل ذخیره را انتخاب کنید."
+                            backupLauncher.launchSafely(suggestedName) { message -> status = message }
+                        }
+                } else {
+                    backupLauncher.launchSafely(suggestedName) { message -> status = message }
+                }
+            }) { Text("تهیه بکاپ") }
+
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                restoreLauncher.launchSafely(arrayOf("application/json", "text/plain", "*/*")) { message -> status = message }
+            }) { Text("انتخاب فایل بکاپ و بازیابی") }
+
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(modifier = Modifier.weight(1f), onClick = { backupLauncher.launch("KharjYar-Backup-${PersianDate.format(System.currentTimeMillis()).replace("/", "-")}.json") }) { Text("تهیه بکاپ") }
-                OutlinedButton(modifier = Modifier.weight(1f), onClick = { restoreLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }) { Text("بازیابی") }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(modifier = Modifier.weight(1f), onClick = { xlsxLauncher.launch("KharjYar-Transactions.xlsx") }) { Text("خروجی Excel") }
-                OutlinedButton(modifier = Modifier.weight(1f), onClick = { pdfLauncher.launch("KharjYar-Report.pdf") }) { Text("خروجی PDF") }
+                OutlinedButton(modifier = Modifier.weight(1f), onClick = { xlsxLauncher.launchSafely("KharjYar-Transactions.xlsx") { status = it } }) { Text("خروجی Excel") }
+                OutlinedButton(modifier = Modifier.weight(1f), onClick = { pdfLauncher.launchSafely("KharjYar-Report.pdf") { status = it } }) { Text("خروجی PDF") }
             }
         }
-
         SettingsAccordionSection("اعلان بانکی و حساب‌ها", "${accounts.size.toString().toPersianDigits()} حساب • ${bankImports.size.toString().toPersianDigits()} پیام در انتظار", openSection == "bank", { openSection = if (openSection == "bank") null else "bank" }) {
             Text("با فعال‌کردن دسترسی اعلان‌ها، دخل و خرج اعلان‌های بانکی را فقط روی همین دستگاه بررسی می‌کند؛ داده‌ای به سرور ارسال نمی‌شود.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 12.sp)
             OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
@@ -1583,14 +1608,70 @@ private fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged:
         }
 
         SettingsAccordionSection("اعضای خانواده", "${members.size.toString().toPersianDigits()} عضو", openSection == "members", { openSection = if (openSection == "members") null else "members" }) {
-            Text("در ثبت تراکنش می‌توانید مشخص کنید تراکنش مربوط به چه کسی است.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-            Text(members.joinToString("  •  ") { it.name }, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(memberName, { memberName = it }, Modifier.weight(1f), label = { Text("نام عضو") }, singleLine = true, textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start))
-                OutlinedButton(onClick = { if (memberName.isNotBlank()) { repo.addMember(memberName); memberName = ""; onChanged() } }) { Text("افزودن") }
+            Text("به‌صورت پیش‌فرض فقط «من» وجود دارد. هر عضو دیگری را خودتان با نام دلخواه اضافه کنید.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 12.sp)
+
+            members.forEach { member ->
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(member.name, fontWeight = FontWeight.SemiBold)
+                            if (member.name == "من") Text("عضو پیش‌فرض", fontSize = 11.sp)
+                        }
+                        if (member.name != "من") {
+                            TextButton(onClick = {
+                                val removed = repo.deleteMember(member.id)
+                                status = if (removed) {
+                                    "عضو «${member.name}» حذف شد. تراکنش‌های قبلی او بدون تغییر باقی ماندند."
+                                } else {
+                                    "این عضو قابل حذف نیست؛ اگر در تراکنش تکرارشونده استفاده شده، ابتدا آن مورد را حذف کنید."
+                                }
+                                if (removed) onChanged()
+                            }) { Text("حذف") }
+                        }
+                    }
+                }
+            }
+
+            if (showMemberAdder) {
+                OutlinedTextField(
+                    memberName,
+                    { memberName = it },
+                    Modifier.fillMaxWidth(),
+                    label = { Text("نام عضو جدید") },
+                    placeholder = { Text("مثلاً همسر، فرزند، هم‌خانه") },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start)
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(modifier = Modifier.weight(1f), onClick = {
+                        val name = memberName.trim()
+                        if (name.isBlank()) {
+                            status = "نام عضو را وارد کنید."
+                        } else if (repo.addMember(name)) {
+                            memberName = ""
+                            showMemberAdder = false
+                            status = "عضو جدید اضافه شد."
+                            onChanged()
+                        } else {
+                            status = "این نام قبلاً وجود دارد."
+                        }
+                    }) { Text("ذخیره عضو") }
+
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = {
+                        memberName = ""
+                        showMemberAdder = false
+                    }) { Text("انصراف") }
+                }
+            } else {
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                    showMemberAdder = true
+                }) { Text("＋ افزودن عضو") }
             }
         }
-
         SettingsAccordionSection("تراکنش‌های تکرارشونده", "${recurring.size.toString().toPersianDigits()} مورد", openSection == "recurring", { openSection = if (openSection == "recurring") null else "recurring" }) {
             if (recurring.isEmpty()) EmptyState("تراکنش تکرارشونده‌ای ثبت نشده است.") else recurring.forEach { rule ->
                 Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
@@ -1667,7 +1748,7 @@ private fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged:
             if (customTags.isNotEmpty()) Text(customTags.joinToString("  ") { "#$it" }, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
         }
 
-        SettingsAccordionSection("درباره برنامه", "نسخه آزمایشی ۱.۰.۵", openSection == "about", { openSection = if (openSection == "about") null else "about" }) {
+        SettingsAccordionSection("درباره برنامه", "نسخه آزمایشی ۱.۰.۶", openSection == "about", { openSection = if (openSection == "about") null else "about" }) {
             Text("دخل و خرج برای مدیریت آفلاین درآمد، هزینه و تعهدات مالی ساخته شده است.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             Text("توسعه‌دهنده: hutoto-147", fontWeight = FontWeight.SemiBold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1710,6 +1791,36 @@ private fun SettingsAccordionSection(
         }
     }
 }
+private fun saveBackupToDownloads(context: android.content.Context, json: String, fileName: String): String {
+    require(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+    val resolver = context.contentResolver
+    val values = android.content.ContentValues().apply {
+        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/json")
+        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+    }
+    val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        ?: error("امکان ساخت فایل بکاپ در Downloads وجود ندارد")
+    try {
+        val stream = resolver.openOutputStream(uri, "w")
+            ?: error("امکان نوشتن فایل بکاپ وجود ندارد")
+        stream.writer(Charsets.UTF_8).use { it.write(json) }
+    } catch (t: Throwable) {
+        runCatching { resolver.delete(uri, null, null) }
+        throw t
+    }
+    return fileName
+}
+
+private fun restoreBackupFromUri(context: android.content.Context, repo: LedgerRepository, uri: Uri) {
+    val json = context.contentResolver.openInputStream(uri)
+        ?.bufferedReader(Charsets.UTF_8)
+        ?.use { it.readText() }
+        ?: error("فایل بکاپ خوانده نشد")
+    repo.importJson(json)
+    ReminderScheduler.scheduleAll(context)
+}
+
 private fun <I> ActivityResultLauncher<I>.launchSafely(input: I, onFailure: (String) -> Unit) {
     runCatching { launch(input) }.onFailure { onFailure("این قابلیت روی دستگاه باز نشد: ${it.message ?: "خطای نامشخص"}") }
 }
