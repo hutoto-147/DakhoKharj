@@ -3,35 +3,61 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
+val releaseStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+
 android {
     namespace = "com.example.kharjyar"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.kharjyar"
+        applicationId = "io.github.hutoto147.dakhlokharj"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.0"
+        versionCode = 5
+        versionName = "1.0.5"
     }
 
     signingConfigs {
+        // Public development key for io.github.hutoto147.dakhlokharj.debug only.
+        // V5+ debug APKs can update each other; never use this key for Play release.
         create("stableDebug") {
-            storeFile = file("kharjyar-test.keystore")
-            storePassword = "kharjyar123"
-            keyAlias = "kharjyar-test"
-            keyPassword = "kharjyar123"
+            storeFile = file("kharjyar-v5-debug.keystore")
+            storePassword = "kharjyar-v5-debug"
+            keyAlias = "kharjyar-debug"
+            keyPassword = "kharjyar-v5-debug"
+        }
+        if (
+            !releaseKeystorePath.isNullOrBlank() &&
+            !releaseStorePassword.isNullOrBlank() &&
+            !releaseKeyAlias.isNullOrBlank() &&
+            !releaseKeyPassword.isNullOrBlank()
+        ) {
+            create("releaseSecure") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
     buildTypes {
         getByName("debug") {
+            // Debug builds can coexist with the public app and cannot overwrite it.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
             signingConfig = signingConfigs.getByName("stableDebug")
         }
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("stableDebug")
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfigs.findByName("releaseSecure")?.let { signingConfig = it }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
@@ -63,5 +89,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.biometric:biometric:1.1.0")
 
+    testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

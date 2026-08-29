@@ -2,8 +2,6 @@ package com.example.kharjyar
 
 import android.icu.util.Calendar
 import android.icu.util.ULocale
-import java.text.NumberFormat
-import java.util.Locale
 
 object PersianDate {
     private fun newPersianCalendar(): Calendar =
@@ -114,6 +112,22 @@ object PersianDate {
         return cal.timeInMillis
     }
 
+    fun withTime(millis: Long, hour: Int, minute: Int): Long {
+        val cal = newPersianCalendar().apply { timeInMillis = millis }
+        cal.set(Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
+        cal.set(Calendar.MINUTE, minute.coerceIn(0, 59))
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    fun formatTime(millis: Long): String {
+        val cal = newPersianCalendar().apply { timeInMillis = millis }
+        return "${cal.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')}:${cal.get(Calendar.MINUTE).toString().padStart(2, '0')}".toPersianDigits()
+    }
+
+    fun formatDateTime(millis: Long): String = "${format(millis)}، ${formatTime(millis)}"
+
     fun lastMonths(count: Int, now: Long = System.currentTimeMillis()): List<MonthRef> {
         val base = newPersianCalendar().apply {
             timeInMillis = now
@@ -139,23 +153,28 @@ object PersianDate {
     }
 }
 
-fun Long.asToman(): String =
-    "${NumberFormat.getNumberInstance(Locale("fa", "IR")).format(this)} تومان"
-
-fun Long.asCompactToman(): String {
-    val value = this.toDouble()
-    return when {
-        kotlin.math.abs(value) >= 1_000_000_000 -> "${formatOneDecimal(value / 1_000_000_000)} میلیارد"
-        kotlin.math.abs(value) >= 1_000_000 -> "${formatOneDecimal(value / 1_000_000)} میلیون"
-        kotlin.math.abs(value) >= 1_000 -> "${formatOneDecimal(value / 1_000)} هزار"
-        else -> NumberFormat.getNumberInstance(Locale("fa", "IR")).format(this)
+/**
+ * Groups the absolute amount into 3-digit clusters with the Persian thousands
+ * separator U+066C. Example: 1200000 -> ۱٬۲۰۰٬۰۰۰
+ */
+fun Long.toGroupedPersianDigits(): String {
+    val digits = kotlin.math.abs(this).toString()
+    val grouped = buildString {
+        for (i in digits.indices) {
+            if (i > 0 && (digits.length - i) % 3 == 0) append('٬')
+            append(digits[i])
+        }
     }
+    return grouped.toPersianDigits()
 }
 
-private fun formatOneDecimal(value: Double): String {
-    val rounded = if (value % 1.0 == 0.0) value.toLong().toString() else "%.1f".format(Locale.US, value)
-    return rounded.toPersianDigits()
+fun Long.asToman(): String {
+    val sign = if (this < 0) "−" else ""
+    return "${this.toGroupedPersianDigits()}$sign تومان"
 }
+
+fun Long.asCompactToman(): String =
+    asToman()
 
 fun String.toEnglishDigits(): String = buildString {
     this@toEnglishDigits.forEach { ch ->
@@ -179,6 +198,14 @@ fun String.toPersianDigits(): String = buildString {
             }
         )
     }
+}
+
+fun String.formatAmountInput(): String {
+    val digits = toEnglishDigits().filter { it.isDigit() }
+    if (digits.isEmpty()) return ""
+    val normalized = digits.dropWhile { it == '0' }.ifEmpty { "0" }
+    val grouped = normalized.reversed().chunked(3).joinToString("٬").reversed()
+    return grouped.toPersianDigits()
 }
 
 fun String.toLongAmountOrNull(): Long? {

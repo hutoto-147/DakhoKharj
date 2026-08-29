@@ -3,12 +3,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.READ_SMS" />
-    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
-        android:allowBackup="true"
-        android:label="خرج‌یار"
+        android:allowBackup="false"
+        android:label="دخل و خرج"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.KharjYar">
 
@@ -36,18 +37,9 @@
             </intent-filter>
         </receiver>
 
-        <receiver
-            android:name=".BankSmsReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter android:priority="500">
-                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-            </intent-filter>
-        </receiver>
-
         <service
             android:name=".BankNotificationListener"
-            android:label="خرج‌یار - خواندن اعلان بانکی"
+            android:label="دخل و خرج - خواندن اعلان بانکی"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="false">
             <intent-filter>

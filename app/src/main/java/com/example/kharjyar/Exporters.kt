@@ -73,7 +73,7 @@ object Exporters {
         var y = 50f
 
         fun header() {
-            canvas.drawText("گزارش تراکنش‌های خرج‌یار", 555f, y, titlePaint)
+            canvas.drawText("گزارش تراکنش‌های دخل و خرج", 555f, y, titlePaint)
             y += 28f
             canvas.drawText("تعداد تراکنش‌ها: ${entries.size.toString().toPersianDigits()}", 555f, y, smallPaint)
             y += 24f

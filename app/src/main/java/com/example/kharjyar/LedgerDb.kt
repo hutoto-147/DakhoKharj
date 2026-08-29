@@ -8,12 +8,12 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONArray
 import org.json.JSONObject
 
-class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null, 3) {
+class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null, 4) {
     companion object {
         private const val TAG_SEP = "\u001F"
         private val BACKUP_TABLES = listOf(
             "entries", "custom_categories", "custom_tags", "settings", "debts", "debt_history",
-            "accounts", "household_members", "recurring_rules", "reminders", "installments", "bank_imports"
+            "accounts", "household_members", "recurring_rules", "recurring_occurrences", "reminders", "installments", "bank_imports"
         )
     }
 
@@ -21,6 +21,7 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
         createCoreTables(db)
         createV2Tables(db)
         createV3Tables(db)
+        createV4Tables(db)
         seedDefaults(db)
     }
 
@@ -154,6 +155,8 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
                 account_name TEXT NOT NULL DEFAULT 'حساب اصلی',
                 note TEXT NOT NULL DEFAULT '',
                 reminder_days_before INTEGER NOT NULL DEFAULT 3,
+                reminder_hour INTEGER NOT NULL DEFAULT 9,
+                reminder_minute INTEGER NOT NULL DEFAULT 0,
                 enabled INTEGER NOT NULL DEFAULT 1
             )
             """.trimIndent()
@@ -177,20 +180,44 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_bank_imports_status ON bank_imports(status)")
     }
 
+    private fun createV4Tables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS recurring_occurrences (
+                rule_id INTEGER NOT NULL,
+                occurred_at INTEGER NOT NULL,
+                PRIMARY KEY(rule_id, occurred_at)
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun hasColumn(db: SQLiteDatabase, table: String, column: String): Boolean =
+        db.rawQuery("PRAGMA table_info($table)", null).use { c ->
+            val nameIndex = c.getColumnIndex("name")
+            while (c.moveToNext()) if (nameIndex >= 0 && c.getString(nameIndex) == column) return@use true
+            false
+        }
+
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createV2Tables(db)
         if (oldVersion < 3) {
-            fun addColumn(sql: String) { runCatching { db.execSQL(sql) } }
-            addColumn("ALTER TABLE entries ADD COLUMN account_name TEXT NOT NULL DEFAULT 'حساب اصلی'")
-            addColumn("ALTER TABLE entries ADD COLUMN member_name TEXT NOT NULL DEFAULT 'من'")
-            addColumn("ALTER TABLE entries ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'")
-            addColumn("ALTER TABLE debts ADD COLUMN kind TEXT NOT NULL DEFAULT 'DEBT'")
-            addColumn("ALTER TABLE debts ADD COLUMN due_at INTEGER NOT NULL DEFAULT 0")
-            addColumn("ALTER TABLE debts ADD COLUMN reminder_at INTEGER NOT NULL DEFAULT 0")
+            if (!hasColumn(db, "entries", "account_name")) db.execSQL("ALTER TABLE entries ADD COLUMN account_name TEXT NOT NULL DEFAULT 'حساب اصلی'")
+            if (!hasColumn(db, "entries", "member_name")) db.execSQL("ALTER TABLE entries ADD COLUMN member_name TEXT NOT NULL DEFAULT 'من'")
+            if (!hasColumn(db, "entries", "source")) db.execSQL("ALTER TABLE entries ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'")
+            if (!hasColumn(db, "debts", "kind")) db.execSQL("ALTER TABLE debts ADD COLUMN kind TEXT NOT NULL DEFAULT 'DEBT'")
+            if (!hasColumn(db, "debts", "due_at")) db.execSQL("ALTER TABLE debts ADD COLUMN due_at INTEGER NOT NULL DEFAULT 0")
+            if (!hasColumn(db, "debts", "reminder_at")) db.execSQL("ALTER TABLE debts ADD COLUMN reminder_at INTEGER NOT NULL DEFAULT 0")
             createV3Tables(db)
             db.execSQL("UPDATE entries SET category = 'خودرو و تردد' WHERE category = 'رفت‌وآمد'")
             db.execSQL("UPDATE custom_categories SET name = 'خودرو و تردد' WHERE name = 'رفت‌وآمد'")
             seedDefaults(db)
+        }
+        if (oldVersion < 4) {
+            createV4Tables(db)
+            if (!hasColumn(db, "installments", "reminder_hour")) db.execSQL("ALTER TABLE installments ADD COLUMN reminder_hour INTEGER NOT NULL DEFAULT 9")
+            if (!hasColumn(db, "installments", "reminder_minute")) db.execSQL("ALTER TABLE installments ADD COLUMN reminder_minute INTEGER NOT NULL DEFAULT 0")
+            db.delete("reminders", "kind = ?", arrayOf(ReminderKind.INSTALLMENT.name))
         }
     }
 
@@ -400,24 +427,40 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
         return if (rule.id == 0L) writableDatabase.insertOrThrow("recurring_rules", null, v) else { writableDatabase.update("recurring_rules", v, "id = ?", arrayOf(rule.id.toString())); rule.id }
     }
 
-    fun deleteRecurringRule(id: Long) { writableDatabase.delete("recurring_rules", "id = ?", arrayOf(id.toString())) }
+    fun deleteRecurringRule(id: Long) {
+        val db = writableDatabase
+        db.delete("recurring_occurrences", "rule_id = ?", arrayOf(id.toString()))
+        db.delete("recurring_rules", "id = ?", arrayOf(id.toString()))
+    }
 
     fun materializeRecurring(now: Long = System.currentTimeMillis()): Int {
+        val db = writableDatabase
         var count = 0
-        getRecurringRules().filter { it.enabled }.forEach { rule ->
-            var next = rule.nextRunAt
-            var guard = 0
-            while (next <= now && guard < 36) {
-                saveEntry(LedgerEntry(type = rule.type, amount = rule.amount, category = rule.category, subcategory = rule.subcategory,
-                    note = if (rule.note.isBlank()) "تراکنش تکرارشونده" else rule.note, occurredAt = next, accountName = rule.accountName, memberName = rule.memberName, source = "recurring"))
-                next = when (rule.frequency) {
-                    RecurrenceFrequency.WEEKLY -> PersianDate.addDays(next, 7)
-                    RecurrenceFrequency.MONTHLY -> PersianDate.addMonths(next, 1)
-                    RecurrenceFrequency.YEARLY -> PersianDate.addMonths(next, 12)
+        db.beginTransaction()
+        try {
+            getRecurringRules().filter { it.enabled }.forEach { rule ->
+                var next = rule.nextRunAt
+                var guard = 0
+                while (next <= now && guard < 36) {
+                    val marker = ContentValues().apply { put("rule_id", rule.id); put("occurred_at", next) }
+                    val firstTime = db.insertWithOnConflict("recurring_occurrences", null, marker, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+                    if (firstTime) {
+                        saveEntry(LedgerEntry(type = rule.type, amount = rule.amount, category = rule.category, subcategory = rule.subcategory,
+                            note = if (rule.note.isBlank()) "تراکنش تکرارشونده" else rule.note, occurredAt = next, accountName = rule.accountName, memberName = rule.memberName, source = "recurring"))
+                        count++
+                    }
+                    next = when (rule.frequency) {
+                        RecurrenceFrequency.WEEKLY -> PersianDate.addDays(next, 7)
+                        RecurrenceFrequency.MONTHLY -> PersianDate.addMonths(next, 1)
+                        RecurrenceFrequency.YEARLY -> PersianDate.addMonths(next, 12)
+                    }
+                    guard++
                 }
-                count++; guard++
+                if (next != rule.nextRunAt) saveRecurringRule(rule.copy(nextRunAt = next))
             }
-            if (next != rule.nextRunAt) saveRecurringRule(rule.copy(nextRunAt = next))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
         return count
     }
@@ -442,13 +485,17 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
     fun getInstallments(): List<InstallmentPlan> {
         val out = mutableListOf<InstallmentPlan>()
         readableDatabase.query("installments", null, null, null, null, null, "next_due_at ASC").use { c ->
-            while (c.moveToNext()) out += InstallmentPlan(c.long("id"), c.string("title"), c.long("installment_amount"), c.int("remaining_count"), c.long("next_due_at"), c.string("account_name"), c.string("note"), c.int("reminder_days_before"), c.int("enabled") == 1)
+            while (c.moveToNext()) out += InstallmentPlan(
+                id = c.long("id"), title = c.string("title"), installmentAmount = c.long("installment_amount"), remainingCount = c.int("remaining_count"),
+                nextDueAt = c.long("next_due_at"), accountName = c.string("account_name"), note = c.string("note"), reminderDaysBefore = c.int("reminder_days_before"),
+                reminderHour = c.intOr("reminder_hour", 9), reminderMinute = c.intOr("reminder_minute", 0), enabled = c.int("enabled") == 1
+            )
         }
         return out
     }
 
     fun saveInstallment(plan: InstallmentPlan): Long {
-        val v = ContentValues().apply { put("title", plan.title); put("installment_amount", plan.installmentAmount); put("remaining_count", plan.remainingCount); put("next_due_at", plan.nextDueAt); put("account_name", plan.accountName); put("note", plan.note); put("reminder_days_before", plan.reminderDaysBefore); put("enabled", if (plan.enabled) 1 else 0) }
+        val v = ContentValues().apply { put("title", plan.title); put("installment_amount", plan.installmentAmount); put("remaining_count", plan.remainingCount); put("next_due_at", plan.nextDueAt); put("account_name", plan.accountName); put("note", plan.note); put("reminder_days_before", plan.reminderDaysBefore); put("reminder_hour", plan.reminderHour); put("reminder_minute", plan.reminderMinute); put("enabled", if (plan.enabled) 1 else 0) }
         return if (plan.id == 0L) writableDatabase.insertOrThrow("installments", null, v) else { writableDatabase.update("installments", v, "id = ?", arrayOf(plan.id.toString())); plan.id }
     }
 
@@ -480,7 +527,7 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
     fun setBudget(amount: Long) = setSetting("monthly_budget", amount.toString())
 
     fun exportJson(): String {
-        val root = JSONObject().put("format", "kharjyar-backup").put("version", 3).put("createdAt", System.currentTimeMillis())
+        val root = JSONObject().put("format", "kharjyar-backup").put("version", 4).put("createdAt", System.currentTimeMillis())
         BACKUP_TABLES.forEach { table -> root.put(table, dumpTable(table)) }
         return root.toString(2)
     }
@@ -539,6 +586,7 @@ class LedgerDb(context: Context) : SQLiteOpenHelper(context, "kharjyar.db", null
     private fun Cursor.string(name: String): String = getString(getColumnIndexOrThrow(name))
     private fun Cursor.long(name: String): Long = getLong(getColumnIndexOrThrow(name))
     private fun Cursor.int(name: String): Int = getInt(getColumnIndexOrThrow(name))
+    private fun Cursor.intOr(name: String, default: Int): Int { val i = getColumnIndex(name); return if (i < 0 || isNull(i)) default else getInt(i) }
     private fun Cursor.stringOr(name: String, default: String): String { val i = getColumnIndex(name); return if (i < 0 || isNull(i)) default else getString(i) }
     private fun Cursor.longOr(name: String, default: Long): Long { val i = getColumnIndex(name); return if (i < 0 || isNull(i)) default else getLong(i) }
 }

@@ -1,0 +1,23 @@
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+.idea/
+*.iml
+
+# Signing keys and certificates - NEVER commit these
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.der
+
+# Local signing helpers
+keystore.properties
+signing.properties
+
+# OS/editor
+.DS_Store
+Thumbs.db

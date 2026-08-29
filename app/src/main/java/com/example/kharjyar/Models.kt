@@ -138,6 +138,8 @@ data class InstallmentPlan(
     val accountName: String = "حساب اصلی",
     val note: String = "",
     val reminderDaysBefore: Int = 3,
+    val reminderHour: Int = 9,
+    val reminderMinute: Int = 0,
     val enabled: Boolean = true
 )
 
