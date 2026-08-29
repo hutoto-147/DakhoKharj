@@ -1,0 +1,113 @@
+name: Build V7 Minimal Backup Picker Fix APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-v7:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Show baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          sed -n '10,95p' app/build.gradle.kts
+
+      - name: Apply minimal V7 requestCode fix
+        run: python3 apply_v7_requestcode_fix.py .
+
+      - name: Verify patched Gradle
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'applicationId = "io.github.hutoto147.dakhlokharj"' app/build.gradle.kts
+          grep -F 'versionCode = 7' app/build.gradle.kts
+          grep -F 'versionName = "1.0.7"' app/build.gradle.kts
+          grep -F 'implementation("androidx.fragment:fragment-ktx:1.9.0")' app/build.gradle.kts
+          grep -F 'signingConfig = signingConfigs.getByName("stableDebug")' app/build.gradle.kts
+
+      - name: Recover exact V5/V6 debug key if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY_PATH="app/kharjyar-v5-debug.keystore"
+
+          if [ ! -s "$KEY_PATH" ]; then
+            echo "Key not in working tree; searching full Git history..."
+            KEY_COMMIT="$(git log --all --format='%H' -- "$KEY_PATH" | head -n 1 || true)"
+            if [ -z "$KEY_COMMIT" ]; then
+              echo "::error::The exact V5/V6 signing key was not found. Refusing to build an APK that cannot update the installed app."
+              exit 42
+            fi
+            git show "${KEY_COMMIT}:${KEY_PATH}" > "$KEY_PATH"
+          fi
+
+          keytool -list \
+            -keystore "$KEY_PATH" \
+            -storepass kharjyar-v5-debug \
+            -alias kharjyar-debug >/dev/null
+
+          echo "Update signing key verified."
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Check resolved Fragment
+        run: |
+          gradle :app:dependencyInsight \
+            --dependency androidx.fragment:fragment \
+            --configuration debugRuntimeClasspath \
+            --no-daemon
+
+      - name: Run unit tests
+        run: gradle :app:testDebugUnitTest --no-daemon
+
+      - name: Build Debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Verify APK exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          sha256sum app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit only the tested Gradle hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/build.gradle.kts
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "V7: fix ActivityResult requestCode compatibility"
+            git push origin HEAD:main
+          fi
+
+      - name: Upload V7 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DakhlKharj-V7-RequestCode-Fix-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
