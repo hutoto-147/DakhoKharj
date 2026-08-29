@@ -1,0 +1,43 @@
+name: Publish KharjYar v1.0
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Build signed release APK and AAB
+        run: gradle :app:assembleRelease :app:bundleRelease --no-daemon
+
+      - name: Prepare release files
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk KharjYar-v1.0.apk
+          cp app/build/outputs/bundle/release/app-release.aab KharjYar-v1.0.aab
+
+      - name: Create GitHub Release v1.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.0.0 KharjYar-v1.0.apk KharjYar-v1.0.aab \
+            --title "خرج‌یار v1.0" \
+            --notes "اولین نسخه عمومی خرج‌یار برای اندروید. شامل مدیریت درآمد و هزینه، بدهی و قرض، مقایسه نموداری، یادآورها، بکاپ، خروجی PDF/Excel، حساب‌های بانکی و امکانات شخصی‌سازی." \
+            --latest
