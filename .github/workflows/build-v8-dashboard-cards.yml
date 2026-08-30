@@ -1,0 +1,129 @@
+name: Build V8 Dashboard Cards APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-v8:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Show actual source baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          grep -nE 'applicationId =|versionCode =|versionName =|fragment-ktx|signingConfig =' app/build.gradle.kts
+          grep -nF 'saveBackupToDownloads' app/src/main/java/com/example/kharjyar/MainActivity.kt || true
+          grep -nF 'نمایش جزئیات' app/src/main/java/com/example/kharjyar/MainActivity.kt || true
+
+      - name: Restore the known-good V6 backup source only if repository source is still old
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'saveBackupToDownloads' app/src/main/java/com/example/kharjyar/MainActivity.kt; then
+            echo "Backup/restore fix already exists in repository source; leaving it untouched."
+          else
+            echo "Repository source still predates the working V6 backup fix; applying the known-good V6 patch first."
+            grep -qE 'versionCode[[:space:]]*=[[:space:]]*5\b' app/build.gradle.kts
+            python3 apply_v6_backup_fix.py .
+          fi
+
+      - name: Apply V8 dashboard-only update
+        run: python3 apply_v8_dashboard_cards.py .
+
+      - name: Verify V8 without touching backup behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'applicationId = "io.github.hutoto147.dakhlokharj"' app/build.gradle.kts
+          grep -F 'versionCode = 8' app/build.gradle.kts
+          grep -F 'versionName = "1.0.8"' app/build.gradle.kts
+          grep -F 'implementation("androidx.fragment:fragment-ktx:1.9.0")' app/build.gradle.kts
+          grep -F 'signingConfig = signingConfigs.getByName("stableDebug")' app/build.gradle.kts
+          grep -F 'saveBackupToDownloads' app/src/main/java/com/example/kharjyar/MainActivity.kt
+          grep -F 'onOpenComparison("درآمد", "دسته‌ها")' app/src/main/java/com/example/kharjyar/MainActivity.kt
+          grep -F 'onOpenComparison("هزینه", "دسته‌ها")' app/src/main/java/com/example/kharjyar/MainActivity.kt
+          grep -F 'onOpenComparison("درآمد و هزینه", "ماه انتخابی")' app/src/main/java/com/example/kharjyar/MainActivity.kt
+          if grep -Fq 'نمایش جزئیات ←' app/src/main/java/com/example/kharjyar/MainActivity.kt; then
+            echo "::error::Old dashboard details label still exists."
+            exit 1
+          fi
+
+      - name: Recover exact V5-V7 debug signing key if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY_PATH="app/kharjyar-v5-debug.keystore"
+
+          if [ ! -s "$KEY_PATH" ]; then
+            echo "Signing key not in current tree; searching Git history..."
+            KEY_COMMIT="$(git log --all --format='%H' -- "$KEY_PATH" | head -n 1 || true)"
+            if [ -z "$KEY_COMMIT" ]; then
+              echo "::error::Exact update signing key not found. Refusing to build a non-updatable APK."
+              exit 42
+            fi
+            git show "${KEY_COMMIT}:${KEY_PATH}" > "$KEY_PATH"
+          fi
+
+          keytool -list \
+            -keystore "$KEY_PATH" \
+            -storepass kharjyar-v5-debug \
+            -alias kharjyar-debug >/dev/null
+
+          echo "Existing update signing key verified."
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Run unit tests
+        run: gradle :app:testDebugUnitTest --no-daemon
+
+      - name: Build V8 Debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          keytool -printcert -jarfile app/build/outputs/apk/debug/app-debug.apk || true
+          sha256sum app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit tested V8 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/build.gradle.kts app/src/main/java/com/example/kharjyar/MainActivity.kt
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "V8: clean dashboard cards"
+            git push origin HEAD:main
+          fi
+
+      - name: Upload V8 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DakhlKharj-V8-Dashboard-Cards-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
