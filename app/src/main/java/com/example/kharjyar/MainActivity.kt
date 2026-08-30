@@ -570,17 +570,35 @@ private fun DashboardScreen(
 
 @Composable
 private fun MetricCard(modifier: Modifier, title: String, value: String, background: Color, onClick: () -> Unit) {
-    Card(modifier = modifier.height(116.dp).clickable(onClick = onClick), colors = CardDefaults.cardColors(containerColor = background), shape = RoundedCornerShape(20.dp)) {
-        Column(Modifier.fillMaxSize().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(title, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+    Card(
+        modifier = modifier.height(116.dp).clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = background),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(title, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(4.dp))
+                Text("‹", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
             Spacer(Modifier.height(8.dp))
-            Text(value, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 20.sp)
-            Spacer(Modifier.height(4.dp))
-            Text("نمایش جزئیات ←", fontSize = 10.sp)
+            Text(
+                value,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                lineHeight = 20.sp
+            )
         }
     }
 }
-
 @Composable
 private fun ObligationMetricCard(
     modifier: Modifier,
@@ -590,12 +608,27 @@ private fun ObligationMetricCard(
     background: Color,
     onClick: () -> Unit
 ) {
-    Card(modifier = modifier.height(112.dp).clickable(onClick = onClick), colors = CardDefaults.cardColors(containerColor = background), shape = RoundedCornerShape(18.dp)) {
-        Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+    Card(
+        modifier = modifier.height(112.dp).clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = background),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(title, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Spacer(Modifier.width(4.dp))
+                Text("‹", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
             Spacer(Modifier.height(6.dp))
             Text(value, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-            Text("${count.toString().toPersianDigits()} مورد • جزئیات ←", fontSize = 10.sp, textAlign = TextAlign.Center)
+            Text("${count.toString().toPersianDigits()} مورد", fontSize = 10.sp, textAlign = TextAlign.Center)
         }
     }
 }
@@ -1748,7 +1781,7 @@ private fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged:
             if (customTags.isNotEmpty()) Text(customTags.joinToString("  ") { "#$it" }, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
         }
 
-        SettingsAccordionSection("درباره برنامه", "نسخه آزمایشی ۱.۰.۶", openSection == "about", { openSection = if (openSection == "about") null else "about" }) {
+        SettingsAccordionSection("درباره برنامه", "نسخه آزمایشی ۱.۰.۸", openSection == "about", { openSection = if (openSection == "about") null else "about" }) {
             Text("دخل و خرج برای مدیریت آفلاین درآمد، هزینه و تعهدات مالی ساخته شده است.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             Text("توسعه‌دهنده: hutoto-147", fontWeight = FontWeight.SemiBold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
