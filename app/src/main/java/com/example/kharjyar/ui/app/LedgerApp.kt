@@ -69,7 +69,7 @@ fun LedgerApp(
     }
 
     val theme = visualTheme(
-        repo.setting("theme_base", "lavender"),
+        repo.setting("theme_base", "bank"),
         repo.setting("theme_dark", "0") == "1"
     )
 

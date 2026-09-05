@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,7 +33,7 @@ private data class NavItem(
 
 private val navItems = listOf(
     NavItem("خانه", "⌂"),
-    NavItem("تراکنش‌ها", "≡"),
+    NavItem("تراکنش‌ها", "⇄"),
     NavItem("ثبت", "＋"),
     NavItem("مقایسه", "▥"),
     NavItem("تنظیمات", "⚙")
@@ -47,8 +48,8 @@ internal fun KharjBottomBar(
 ) {
     Surface(
         color = containerColor,
-        tonalElevation = 6.dp,
-        shadowElevation = 10.dp,
+        tonalElevation = 8.dp,
+        shadowElevation = 12.dp,
         shape = AppDesign.navShape,
         modifier = Modifier
             .fillMaxWidth()
@@ -57,7 +58,7 @@ internal fun KharjBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp)
+                .height(70.dp)
                 .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
@@ -95,41 +96,34 @@ private fun StandardNavItem(
     val contentColor = if (selected) {
         primaryColor
     } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f)
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
     }
 
     Column(
         modifier = Modifier
             .clip(AppDesign.controlShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 7.dp),
+            .padding(horizontal = 7.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        Box(
-            modifier = if (selected) {
-                Modifier
-                    .clip(CircleShape)
-                    .background(primaryColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 10.dp, vertical = 2.dp)
-            } else {
-                Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
-            },
-            contentAlignment = Alignment.Center
+        Surface(
+            shape = AppDesign.controlShape,
+            color = if (selected) primaryColor.copy(alpha = 0.12f) else Color.Transparent
         ) {
             Text(
                 text = icon,
                 color = contentColor,
                 fontSize = 19.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 11.dp, vertical = 3.dp)
             )
         }
-
         Text(
             text = title,
             color = contentColor,
             fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
@@ -144,33 +138,50 @@ private fun RegisterNavItem(
     Column(
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(1.dp)
     ) {
-        Surface(
+        Box(
             modifier = Modifier
-                .size(50.dp)
-                .offset(y = (-7).dp),
-            shape = CircleShape,
-            color = primaryColor,
-            shadowElevation = if (selected) 12.dp else 8.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "＋",
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold
+                .size(56.dp)
+                .offset(y = (-8).dp)
+                .clip(CircleShape)
+                .background(
+                    brush = Brush.linearGradient(
+                        listOf(
+                            primaryColor.copy(alpha = 0.52f),
+                            Color.White.copy(alpha = 0.80f),
+                            primaryColor.copy(alpha = 0.52f)
+                        )
+                    )
                 )
+                .padding(2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier.size(50.dp),
+                shape = CircleShape,
+                color = primaryColor,
+                shadowElevation = if (selected) 14.dp else 10.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "＋",
+                        color = Color.White,
+                        fontSize = 27.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
         Text(
             text = title,
-            color = if (selected) primaryColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+            color = if (selected) primaryColor
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
             fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.Bold
         )
     }
 }

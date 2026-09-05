@@ -150,6 +150,20 @@ private data class ThemeBase(
 )
 
 private val themeBases = listOf(
+    // FINAL_BANKING_VISUAL_PACK
+    ThemeBase(
+        "bank",
+        "بانکی",
+        Color(0xFFF4F8FB),
+        Color(0xFFE8F0F5),
+        Color(0xFFF9FBFC),
+        Color(0xFFF0F5F8),
+        Color(0xFF071923),
+        Color(0xFF041118),
+        Color(0xFF0D222D),
+        Color(0xFF0A1C26),
+        Color(0xFF0B6B78)
+    ),
     ThemeBase("lavender", "یاسی", Color(0xFFFFFAFF), Color(0xFFF4EFFA), Color(0xFFF5F0F7), Color(0xFFF0EAF7), Color(0xFF211C27), Color(0xFF17141C), Color(0xFF2A2430), Color(0xFF251F2C), Color(0xFF795CB9)),
     ThemeBase("mist", "آبی", Color(0xFFF2FAFF), Color(0xFFDCEFFA), Color(0xFFE5F3FA), Color(0xFFD9EBF6), Color(0xFF18232B), Color(0xFF10191F), Color(0xFF202E37), Color(0xFF1B2830), Color(0xFF397FAE)),
     ThemeBase("mint", "سبز", Color(0xFFF2FFF7), Color(0xFFDDF4E6), Color(0xFFE5F5EB), Color(0xFFD8EEDF), Color(0xFF17241C), Color(0xFF101A14), Color(0xFF203026), Color(0xFF1A291F), Color(0xFF3F8D60)),
@@ -287,7 +301,13 @@ internal fun SplashScreen(theme: VisualTheme) {
             Text(
                 text = "مدیریت هوشمند پول روزانه",
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.66f)
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
+            )
+            Text(
+                text = "ساده • امن • روشن",
+                fontSize = 11.sp,
+                color = theme.primary.copy(alpha = 0.86f)
             )
 
             Spacer(Modifier.height(4.dp))
@@ -421,51 +441,83 @@ internal fun DashboardScreen(
         }
 
         item {
-            Card(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onOpenComparison("درآمد و هزینه", "ماه انتخابی") },
-                colors = CardDefaults.cardColors(
-                    containerColor = if (balance < 0L) {
-                        MaterialTheme.colorScheme.errorContainer
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    }
-                ),
-                shape = RoundedCornerShape(24.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.42f),
+                                Color.White.copy(alpha = if (dark) 0.16f else 0.72f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
+                            )
+                        )
+                    )
+                    .padding(1.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenComparison("درآمد و هزینه", "ماه انتخابی") },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (balance < 0L) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        }
+                    ),
+                    shape = RoundedCornerShape(25.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    Text(
-                        "موجودی فعلی",
-                        color = if (balance < 0L) {
-                            MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.74f)
-                        } else {
-                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.76f)
-                        },
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        balance.asToman(),
-                        color = if (balance < 0L) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onPrimary
-                        },
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "مشاهده جزئیات مالی ‹",
-                        color = if (balance < 0L) {
-                            MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.72f)
-                        } else {
-                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
-                        },
-                        fontSize = 12.sp
-                    )
+                    Column(
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(9.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "موجودی فعلی",
+                                color = if (balance < 0L) {
+                                    MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.74f)
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.76f)
+                                },
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                "● امن",
+                                color = if (balance < 0L) {
+                                    MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.62f)
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.62f)
+                                },
+                                fontSize = 10.sp
+                            )
+                        }
+                        Text(
+                            balance.asToman(),
+                            color = if (balance < 0L) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onPrimary
+                            },
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "مشاهده تحلیل و جزئیات مالی ‹",
+                            color = if (balance < 0L) {
+                                MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.72f)
+                            } else {
+                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+                            },
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }
@@ -1864,7 +1916,7 @@ private fun seriesColor(label: String, index: Int, paletteId: String): Color {
 internal fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged: () -> Unit) {
     val context = LocalContext.current
     val entries = remember(refreshToken) { repo.entries() }
-    val selectedTheme = remember(refreshToken) { repo.setting("theme_base", "lavender") }
+    val selectedTheme = remember(refreshToken) { repo.setting("theme_base", "bank") }
     val isDark = remember(refreshToken) { repo.setting("theme_dark", "0") == "1" }
     val selectedPalette = remember(refreshToken) { repo.setting("chart_palette", "green_red") }
     val selectedFont = remember(refreshToken) { repo.setting("font_name", "Arial") }

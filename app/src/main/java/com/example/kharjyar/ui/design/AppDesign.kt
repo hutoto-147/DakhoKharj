@@ -12,6 +12,8 @@ internal object AppDesign {
     val navRadius = 24.dp
     val controlRadius = 16.dp
     val heroElevation = 10.dp
+    val hairline = 1.dp
+    val navItemRadius = 14.dp
 
     val cardShape = RoundedCornerShape(cardRadius)
     val heroShape = RoundedCornerShape(heroRadius)
