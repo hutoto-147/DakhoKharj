@@ -224,40 +224,78 @@ internal fun KharjYarTheme(theme: VisualTheme, fontName: String, fontScale: Floa
 
 @Composable
 internal fun SplashScreen(theme: VisualTheme) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
-
-    val alpha by animateFloatAsState(
-        if (visible) 1f else 0f,
-        animationSpec = tween(1000),
-        label = "splashNameAlpha"
+    val infinite = rememberInfiniteTransition(label = "splash")
+    val pulse by infinite.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1300),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    val glow by infinite.animateFloat(
+        initialValue = 0.18f,
+        targetValue = 0.34f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow"
     )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF0B4564), Color(0xFF052A42), Color(0xFF031C2E))
-                )
-            ),
+            .background(theme.background),
         contentAlignment = Alignment.Center
     ) {
+        Box(
+            modifier = Modifier
+                .size((118 * pulse).dp)
+                .clip(CircleShape)
+                .background(theme.primary.copy(alpha = glow))
+        )
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.graphicsLayer(alpha = alpha)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            Surface(
+                shape = CircleShape,
+                color = theme.primary,
+                shadowElevation = 12.dp,
+                modifier = Modifier.size(82.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "دخ",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
             Text(
-                "دخل و خرج",
-                color = Color.White,
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold
+                text = "دخل و خرج",
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onBackground
             )
+
             Text(
-                "حساب ساده، تصمیم روشن",
-                color = Color.White.copy(alpha = 0.84f),
-                fontSize = 14.sp
+                text = "مدیریت هوشمند پول روزانه",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.66f)
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            LinearProgressIndicator(
+                modifier = Modifier.width(128.dp),
+                color = theme.primary,
+                trackColor = theme.primary.copy(alpha = 0.14f)
             )
         }
     }
@@ -724,6 +762,76 @@ private fun DashboardObligationCard(
                     "${count.toString().toPersianDigits()} مورد",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun FinanceSectionHeader(
+    title: String,
+    subtitle: String? = null
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FinanceInfoCard(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    accent: Color = MaterialTheme.colorScheme.primary,
+    supporting: String? = null,
+    onClick: (() -> Unit)? = null
+) {
+    val clickableModifier = if (onClick != null) {
+        modifier.clickable(onClick = onClick)
+    } else {
+        modifier
+    }
+
+    Card(
+        modifier = clickableModifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = title,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f)
+            )
+            Text(
+                text = value,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = accent
+            )
+            if (!supporting.isNullOrBlank()) {
+                Text(
+                    text = supporting,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f)
                 )
             }
         }
