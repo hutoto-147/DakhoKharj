@@ -932,11 +932,32 @@ internal fun TransactionsScreen(
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            OutlinedTextField(
-                value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
-                label = { Text("جستجو در هزینه، درآمد، حساب، عضو یا توضیح") }, singleLine = true,
-                textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start)
-            )
+            // CORE_TX_PACK_2_V3
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("تراکنش‌ها", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "${feed.size.toString().toPersianDigits()} مورد",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                )
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    label = { Text("جستجو") },
+                    placeholder = { Text("دسته، حساب، عضو یا توضیح") },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start)
+                )
+            }
         }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -946,7 +967,7 @@ internal fun TransactionsScreen(
             }
         }
         item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("مرتب‌سازی", fontWeight = FontWeight.SemiBold)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -982,7 +1003,7 @@ private fun EntryCard(entry: LedgerEntry, onEdit: () -> Unit, onDelete: () -> Un
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val bg = if (entry.type == EntryType.INCOME) { if (dark) Color(0xFF234130) else IncomeSoftLight } else { if (dark) Color(0xFF4A2830) else ExpenseSoftLight }
     val strong = if (entry.type == EntryType.INCOME) { if (dark) Color(0xFF8BD0A1) else IncomeStrong } else { if (dark) Color(0xFFF0A0AC) else ExpenseStrong }
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bg), shape = RoundedCornerShape(18.dp)) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bg), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1004,7 +1025,10 @@ private fun EntryCard(entry: LedgerEntry, onEdit: () -> Unit, onDelete: () -> Un
             Text("${PersianDate.format(entry.occurredAt)}  •  ${entry.accountName}  •  ${entry.memberName}", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 12.sp)
             if (entry.note.isNotBlank()) Text(entry.note, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             if (entry.tags.isNotEmpty()) Text(entry.tags.joinToString("  ") { "#$it" }, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 12.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { TextButton(onClick = onEdit) { Text("ویرایش") }; TextButton(onClick = onDelete) { Text("حذف") } }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TextButton(onClick = onEdit) { Text("ویرایش") }
+                TextButton(onClick = onDelete) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+            }
         }
     }
 }
@@ -1014,7 +1038,7 @@ private fun DebtCard(debt: Debt, onEdit: () -> Unit, onDelete: () -> Unit) {
     val isLoan = debt.kind == ObligationKind.LOAN
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val bg = if (isLoan) { if (dark) Color(0xFF332C4E) else LoanSoftLight } else { if (dark) Color(0xFF49371D) else DebtSoftLight }
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bg), shape = RoundedCornerShape(18.dp)) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bg), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1025,7 +1049,10 @@ private fun DebtCard(debt: Debt, onEdit: () -> Unit, onDelete: () -> Unit) {
             }
             if (debt.dueAt > 0) Text("سررسید: ${PersianDate.format(debt.dueAt)}", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             if (debt.note.isNotBlank()) Text(debt.note, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { TextButton(onClick = onEdit) { Text("ویرایش") }; TextButton(onClick = onDelete) { Text("حذف") } }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TextButton(onClick = onEdit) { Text("ویرایش") }
+                TextButton(onClick = onDelete) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+            }
         }
     }
 }
@@ -1057,6 +1084,10 @@ internal fun AddEntryScreen(
     var selectedMonth by remember(editingEntry?.id, editingDebt?.id) { mutableIntStateOf(baseParts.month) }
     var selectedDay by remember(editingEntry?.id, editingDebt?.id) { mutableIntStateOf(baseParts.day) }
     var tagsExpanded by rememberSaveable { mutableStateOf(false) }
+    var detailsExpanded by rememberSaveable(editingEntry?.id, editingDebt?.id) {
+        mutableStateOf(editingEntry != null || editingDebt != null)
+    }
+    // CORE_PACK_2_V3
     var selectedTags by remember(editingEntry?.id) { mutableStateOf(editingEntry?.tags?.toSet() ?: emptySet()) }
     var customTag by remember { mutableStateOf("") }
     var addReminder by rememberSaveable { mutableStateOf(false) }
@@ -1099,13 +1130,45 @@ internal fun AddEntryScreen(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.End
     ) {
-        SectionTitle("نوع ثبت")
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf("هزینه", "درآمد", "بدهی", "قرض", "یادآور/قسط")) { item ->
-                FilterChip(selected = mode == item, onClick = { if (editingEntry == null && editingDebt == null) mode = item }, label = { Text(item) })
-            }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                if (editingEntry != null || editingDebt != null) "ویرایش ثبت" else "ثبت سریع",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "اطلاعات اصلی را سریع وارد کنید؛ گزینه‌های تکمیلی در جزئیات بیشتر هستند.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f)
+            )
         }
 
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            LazyRow(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(listOf("هزینه", "درآمد", "بدهی", "قرض", "یادآور/قسط")) { item ->
+                    FilterChip(
+                        selected = mode == item,
+                        onClick = {
+                            if (editingEntry == null && editingDebt == null) {
+                                mode = item
+                                detailsExpanded = false
+                            }
+                        },
+                        label = { Text(item) }
+                    )
+                }
+            }
+        }
         if (mode == "هزینه" || mode == "درآمد") {
             OutlinedTextField(
                 value = amountText, onValueChange = { amountText = it.formatAmountInput() }, modifier = Modifier.fillMaxWidth(),
@@ -1113,6 +1176,36 @@ internal fun AddEntryScreen(
                 label = { Text("مبلغ به تومان") }, textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start)
             )
             DropdownSelector("دسته", category, categories.keys.toList()) { category = it; subcategory = categories[it]?.firstOrNull().orEmpty() }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { detailsExpanded = !detailsExpanded },
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("جزئیات بیشتر", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "زیرمجموعه، حساب، عضو، تاریخ، تگ، توضیح و یادآوری",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f)
+                        )
+                    }
+                    Text(if (detailsExpanded) "▲" else "▼")
+                }
+            }
+
+            AnimatedVisibility(
+                visible = detailsExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val subs = categories[category].orEmpty()
             if (entryType == EntryType.INCOME && category in Presets.incomeNameableCategories) {
                 OutlinedTextField(
@@ -1170,7 +1263,13 @@ internal fun AddEntryScreen(
 
             ReminderEditor(addReminder, { addReminder = it }, reminderOffset, { reminderOffset = it }, customReminderDate, { customReminderDate = it }, reminderHour, { reminderHour = it }, reminderMinute, { reminderMinute = it })
 
-            Button(modifier = Modifier.fillMaxWidth(), onClick = {
+                }
+            }
+
+            Button(
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                onClick = {
                 val amount = amountText.toLongAmountOrNull()
                 val date = PersianDate.dateForParts(selectedYear, selectedMonth, selectedDay)
                 if (amount == null || amount <= 0) { status = "مبلغ معتبر وارد کنید."; return@Button }
@@ -1194,6 +1293,36 @@ internal fun AddEntryScreen(
             val kind = if (mode == "قرض") ObligationKind.LOAN else ObligationKind.DEBT
             OutlinedTextField(nameText, { nameText = it }, Modifier.fillMaxWidth(), label = { Text(if (kind == ObligationKind.LOAN) "نام فرد / موضوع قرض" else "نام بدهی / طلبکار") }, singleLine = true, textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start))
             OutlinedTextField(amountText, { amountText = it.formatAmountInput() }, Modifier.fillMaxWidth(), label = { Text("مانده فعلی به تومان") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { detailsExpanded = !detailsExpanded },
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("جزئیات بیشتر", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "تاریخ، توضیح و یادآوری سررسید",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f)
+                        )
+                    }
+                    Text(if (detailsExpanded) "▲" else "▼")
+                }
+            }
+
+            AnimatedVisibility(
+                visible = detailsExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             SectionTitle("تاریخ شروع / ثبت")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f)) { DropdownSelector("سال", selectedYear.toString().toPersianDigits(), years.map { it.toString().toPersianDigits() }) { selectedYear = it.toEnglishDigits().toInt() } }
@@ -1202,7 +1331,13 @@ internal fun AddEntryScreen(
             }
             OutlinedTextField(note, { note = it }, Modifier.fillMaxWidth().height(105.dp), label = { Text("یادداشت") }, textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start))
             ReminderEditor(addReminder, { addReminder = it }, reminderOffset, { reminderOffset = it }, customReminderDate, { customReminderDate = it }, reminderHour, { reminderHour = it }, reminderMinute, { reminderMinute = it }, title = "یادآوری سررسید")
-            Button(modifier = Modifier.fillMaxWidth(), onClick = {
+                }
+            }
+
+            Button(
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                onClick = {
                 val amount = amountText.toLongAmountOrNull()
                 val date = PersianDate.dateForParts(selectedYear, selectedMonth, selectedDay)
                 if (nameText.isBlank() || amount == null || amount <= 0 || date == null) { status = "نام، مبلغ و تاریخ را کامل کنید."; return@Button }
