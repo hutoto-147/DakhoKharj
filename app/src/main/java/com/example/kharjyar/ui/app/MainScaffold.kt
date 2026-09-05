@@ -32,6 +32,7 @@ import com.example.kharjyar.ObligationKind
 import com.example.kharjyar.SettingsScreen
 import com.example.kharjyar.TransactionsScreen
 import com.example.kharjyar.VisualTheme
+import com.example.kharjyar.ui.components.KharjBottomBar
 
 /**
  * Existing five-tab navigation and edit flow extracted from the old MainActivity.kt.
@@ -126,34 +127,18 @@ internal fun MainScaffold(
                 )
             },
             bottomBar = {
-                NavigationBar(
-                    containerColor = theme.nav
-                ) {
-                    tabs.forEachIndexed { index, tab ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = {
-                                if (index != 2) {
-                                    editingEntry = null
-                                    editingDebt = null
-                                }
-                                selectedTab = index
-                            },
-                            icon = {
-                                Text(
-                                    text = tab.icon,
-                                    fontSize = 20.sp
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = tab.title,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        )
+                KharjBottomBar(
+                    selectedIndex = selectedTab,
+                    containerColor = theme.nav,
+                    primaryColor = theme.primary,
+                    onSelect = { index ->
+                        if (index != 2) {
+                            editingEntry = null
+                            editingDebt = null
+                        }
+                        selectedTab = index
                     }
-                }
+                )
             }
         ) { padding ->
             Box(
