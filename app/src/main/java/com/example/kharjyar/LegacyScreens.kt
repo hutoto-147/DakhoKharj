@@ -1490,6 +1490,21 @@ internal fun ComparisonScreen(
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
+            // UI_PACK_3_COMPARISON
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "تحلیل و مقایسه",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "روند درآمد، هزینه، بدهی و قرض را در یک نمای یکپارچه بررسی کنید.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f)
+                )
+            }
+        }
+        item {
             val title = when (metric) {
                 "درآمد" -> "درآمد این ماه"
                 "هزینه" -> "هزینه این ماه"
@@ -1520,32 +1535,62 @@ internal fun ComparisonScreen(
         }
 
         item {
-            SectionTitle("نوع داده")
-            Text("مشخص کنید می‌خواهید کدام بخش را تحلیل کنید.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 12.sp)
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(dataTypes) { item ->
-                    FilterChip(
-                        selected = metric == item,
-                        onClick = {
-                            metric = item
-                            expandedGroup = null
-                            compareMode = if (item == "بدهی" || item == "قرض") {
-                                if (compareMode in obligationModes) compareMode else "روند ماهانه"
-                            } else {
-                                if (compareMode in entryModes) compareMode else "دسته‌ها"
-                            }
-                        },
-                        label = { Text(item) }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("نوع داده", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "مشخص کنید می‌خواهید کدام بخش را تحلیل کنید.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.66f)
                     )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(dataTypes) { item ->
+                            FilterChip(
+                                selected = metric == item,
+                                onClick = {
+                                    metric = item
+                                    expandedGroup = null
+                                    compareMode = if (item == "بدهی" || item == "قرض") {
+                                        if (compareMode in obligationModes) compareMode else "روند ماهانه"
+                                    } else {
+                                        if (compareMode in entryModes) compareMode else "دسته‌ها"
+                                    }
+                                },
+                                label = { Text(item) }
+                            )
+                        }
+                    }
                 }
             }
         }
 
         item {
-            SectionTitle("نوع نمایش")
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(if (isObligation) obligationModes else entryModes) { m ->
-                    FilterChip(selected = compareMode == m, onClick = { compareMode = m; expandedGroup = null }, label = { Text(m) })
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("نوع نمایش", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(if (isObligation) obligationModes else entryModes) { m ->
+                            FilterChip(
+                                selected = compareMode == m,
+                                onClick = { compareMode = m; expandedGroup = null },
+                                label = { Text(m) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1584,7 +1629,7 @@ internal fun ComparisonScreen(
                     item { EmptyState("مورد فعالی برای نمایش وجود ندارد.") }
                 } else {
                     items(obligations, key = { "ob-${it.id}" }) { d ->
-                        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(d.name, fontWeight = FontWeight.Bold)
@@ -1702,7 +1747,7 @@ internal fun ComparisonScreen(
                         }
                         item { Text("جزئیات", fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start) }
                         items(groups, key = { "grp-${it.label}" }) { g ->
-                            Card(Modifier.fillMaxWidth().clickable { expandedGroup = if (expandedGroup == g.label) null else g.label }, shape = RoundedCornerShape(16.dp)) {
+                            Card(Modifier.fillMaxWidth().clickable { expandedGroup = if (expandedGroup == g.label) null else g.label }, shape = RoundedCornerShape(20.dp)) {
                                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                         Column {
@@ -1885,9 +1930,35 @@ internal fun SettingsScreen(repo: LedgerRepository, refreshToken: Int, onChanged
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.End
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalAlignment = Alignment.End
     ) {
-        Text("برای تغییر هر بخش روی عنوان آن بزنید.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontSize = 12.sp)
+        // UI_PACK_3_SETTINGS
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text("تنظیمات", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "ظاهر، امنیت، بودجه، بکاپ و داده‌های برنامه",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f)
+            )
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Text(
+                "برای تغییر هر بخش روی عنوان آن بزنید.",
+                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                textAlign = TextAlign.Start,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+            )
+        }
 
         SettingsAccordionSection("ظاهر برنامه", "$themeLabel • ${if (isDark) "تیره" else "روشن"} • نمودار $paletteLabel", openSection == "appearance", { openSection = if (openSection == "appearance") null else "appearance" }) {
             Text("رنگ و پس‌زمینه", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, fontWeight = FontWeight.SemiBold)
@@ -2145,10 +2216,14 @@ private fun SettingsAccordionSection(
     onToggle: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
         Column(Modifier.fillMaxWidth()) {
             Row(
-                Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 14.dp),
+                Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -2158,9 +2233,19 @@ private fun SettingsAccordionSection(
                 }
                 Text(if (expanded) "▲" else "▼", fontSize = 13.sp)
             }
-            if (expanded) {
-                HorizontalDivider()
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column {
+                    HorizontalDivider()
+                    Column(
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        content = content
+                    )
+                }
             }
         }
     }
@@ -2211,7 +2296,7 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun EmptyState(message: String) {
-    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(14.dp)) {
+    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
         Text(message, Modifier.padding(16.dp).fillMaxWidth(), textAlign = TextAlign.Center)
     }
 }
